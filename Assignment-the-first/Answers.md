@@ -6,9 +6,9 @@
 | File name | label |
 |---|---|
 | 1294_S1_L008_R1_001.fastq.gz | https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/Assignment-the-first/base_qual_R1.py |
-| 1294_S1_L008_R2_001.fastq.gz |  |
-| 1294_S1_L008_R3_001.fastq.gz |  |
-| 1294_S1_L008_R4_001.fastq.gz |  |
+| 1294_S1_L008_R2_001.fastq.gz | https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/Assignment-the-first/base_qual_R2.py |
+| 1294_S1_L008_R3_001.fastq.gz | https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/Assignment-the-first/base_qual_R3.py |
+| 1294_S1_L008_R4_001.fastq.gz | https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/Assignment-the-first/base_qual_R4.py |
 
 2. Per-base NT distribution
     1. Use markdown to insert your 4 histograms here.
