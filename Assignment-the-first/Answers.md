@@ -12,9 +12,9 @@
 
 2. Per-base NT distribution
     1. Use markdown to insert your 4 histograms here.
-    2. ```Your answer here```
+    2. ```![pickle](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R1_output.png)```
     3. ```Your answer here```
-    ![pickle](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R1_output.png)
+    
     
 ## Part 2
 1. Define the problem
