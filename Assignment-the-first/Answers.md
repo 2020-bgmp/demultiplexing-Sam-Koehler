@@ -23,6 +23,9 @@
 2. Describe output
 3. Upload your [4 input FASTQ files](../TEST-input_FASTQ) and your [4 expected output FASTQ files](../TEST-output_FASTQ).
     
+    INOUT
+    https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/tree/master/unit_test/input
+    
     OUTPUT
     https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/tree/master/unit_test/output
     
