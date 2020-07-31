@@ -32,3 +32,5 @@
 UNIT TEST: https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/tree/master/unit_test
 
 PSUEDOCODE: https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/Assignment-the-first/pseudocode_demultiplexing.txt
+
+(includes all answers to part 2)
