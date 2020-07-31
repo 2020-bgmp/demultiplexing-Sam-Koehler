@@ -12,10 +12,10 @@
 
 2. Per-base NT distribution
     1. Use markdown to insert your 4 histograms here.
-    ![pickle](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R1_output.png)
-    ![pickle](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R2_output.png)
-    ![pickle](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R3_output.png)
-    ![pickle](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R4_output.png)
+    ![](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R1_output.png)
+    ![](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R2_output.png)
+    ![](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R3_output.png)
+    ![](https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/blob/master/images/R4_output.png)
     
     
 ## Part 2
@@ -30,4 +30,5 @@
     4. Return statement
     
 UNIT TEST: https://github.com/2020-bgmp/demultiplexing-Sam-Koehler/tree/master/unit_test
+
 PSUEDOCODE: 
