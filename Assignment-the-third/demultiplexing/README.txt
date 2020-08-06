@@ -14,18 +14,3 @@ PROGRAM: demultiplexing.py
 
 OUTPUT
   > Demultiplexed data may be found at UO Talapas: /projects/bgmp/skoehler/bioinformatics/Bi622/demultiplexing/Part_3/output
-
-1. Incorporate feedback from peer code reviews
-  > Peer-reviewed information was used to generate final code.
-  
-2. Utilize appropriate functions
-  > 
-
-3. Sufficiently comment your code/use docstrings
-4. Use unit tests on functions/entire algorithm to ensure it works properly
-5. Create a useful report for the end user of your code
-6. Use argparse to "generalize" your code
-
-7. Percentage of reads from each sample
-8. Overall amount of index swapping
-9. Any figures/any other relevant data your code output
