@@ -1,0 +1,325 @@
+### Part 1, Question 1: File Identification
+
+> Given: File @ /projects/bgmp/shared/2017_sequencing/
+    < 1294_S1_L008_R1_001.fastq.gz
+    < 1294_S1_L008_R2_001.fastq.gz
+    < 1294_S1_L008_R3_001.fastq.gz
+    < 1294_S1_L008_R4_001.fastq.gz
+
+> Determine which file contains what information based on filesize / knowledge of R1-R4
+$ ls -lah /projects/bgmp/shared/2017_sequencing/
+-rw-r--r--+  1 coonrod  bgmp  20G Jul 30  2018 1294_S1_L008_R1_001.fastq.gz     # Read 1
+-rw-r--r--+  1 coonrod  bgmp 2.6G Jul 30  2018 1294_S1_L008_R2_001.fastq.gz     # Index 1
+-rw-r--r--+  1 coonrod  bgmp 2.8G Jul 30  2018 1294_S1_L008_R3_001.fastq.gz     # Index 2
+-rw-r--r--+  1 coonrod  bgmp  23G Jul 30  2018 1294_S1_L008_R4_001.fastq.gz     # Read 2
+
+
+
+###Part 1, Question 2: Quality Score Distribution
+
+> Determine number of reads in data
+    < $ zcat /projects/bgmp/shared/2017_sequencing/1294_S1_L008_R2_001.fastq.gz | wc -l
+    < 1452986940    #Number of lines in file
+    < Number of Reads = 1452986940 / 4
+    < Number of Reads = 363246735
+
+> (i) Run program: base_qual.py
+    < Ran 4 times, once for each read file
+    < See output plots for quality score Distribution
+
+> (ii) Quality Score Cutoffs
+    < Index Reads: Based on empirical R2 & R3 data, a quality score of 30 seems like a reasonable threshold, since this cutoff ensures data has 99.9% base call accuracy.
+    < Biological Reads: Based on empirical R1 & R4 data, a quality score between 30-35 seems reasonable like a reasonable threshold, since this cutoff ensures data as at least a 99.9% accuracy while minimizing data loss due to low-quality.
+
+> (iii) Count indexes containing 1+ "N"
+    < METHOD:
+    < $ zcat /projects/bgmp/shared/2017_sequencing/1294_S1_L008_R2_001.fastq.gz | sed -n '2~4p' | grep "N" | wc -l
+    < 3976613 
+    < $ zcat /projects/bgmp/shared/2017_sequencing/1294_S1_L008_R3_001.fastq.gz | sed -n '2~4p' | grep "N" | wc -l
+    < 3328051
+
+    < RESULT:
+    < R2, Index 1: 3976613 indexes with undetermined base calls
+    < R3, Index 2: 3328051 indexes with undetermined base calls
+
+
+
+###Part 2: De-Multiplexing Algorithm
+
+> DEFINE PROBLEM
+    > Barcodes are used in NGS to identify sequence data
+    > Illumina returns data across 4 files:
+        > R1, Read 1  FASTQ data
+        > R2, Index 1 FASTQ data
+        > R3, Index 2 FASTQ data
+        > R4, Read 2  FASTQ data
+    > Read data, files R1 & R4, is not sorted by index.
+    > It is our job to identify index pairs and sort the data accordingly.
+
+> TARGET OUTPUT
+    > Goal: Given 4 double-barcoded FASTQ files, demultiplex reads by index pair.
+        > Forward (R1) Output
+            > (x24) Forward reads for each dual-matched index
+            > (x01) Forward reads for all index-hopping pairs
+            > (x01) Forward reads for all unknown and/or low quality indexes
+        > Reverse (R2) Output
+            > (x24) Reverse reads for each dual-matched index
+            > (x01) Reverse reads for all index-hopping pairs
+            > (x01) Reverse reads for all unknown and/or low quality indexes
+        > Summary File
+            > Report number of reads for every index combination
+            > Report number of read-pairs with properly matched indexes (per index-pair)
+            > Report number of read pairs with index-hopping observed
+            > Report number of read-pairs with unknown index(es)
+
+> UNIT TESTS
+    > Test Files
+        > unit_R1.fastq
+        > unit_R2.fastq
+        > unit_R3.fastq
+        > unit_R4.fastq
+    > Details
+        > Read 1 - Matched index
+            > Known Index (GTAGCGTA)
+            > High Quality (JJJJJJJJ)
+            > Dual-Matched (GTAGCGTA)
+        > Read 2 - Ambiguous index
+            > Unknown Index (GTAGCGNA)
+            > High Quality (JJJJJJJJ)
+            > Dual-Matched (GTAGCGNA)
+        > Read 3 - Low quality
+            > Known Index (GTAGCGTA)
+            > Low Quality (!!!!!!!!)
+            > Dual-Matched (GTAGCGTA)
+        > Read 4 - Index Hopping
+            > Known Index (AACAGCGA, TAGCCATG)
+            > High Quality (JJJJJJJJ)
+            > Dual-Matched (AACAGCGA, TAGCCATG)
+    > Expected Output
+        > FILE                                      READS
+        > Dual-matched forward file                 Read 1
+        > Dual-matched reverse file                 Read 1
+        > Low-Quality/unknown-index forward file    Read 2, Read 3
+        > Low-Quality/unknown-index reverse file    Read 2, Read 3
+        > Index-hopping forward file                Read 4
+        > Index-hopping reverse file                Read 4
+
+> HIGH LEVEL FUNCTIONS
+    > def convert_phred(vLetter)
+        > Description: Converts a single character into a phred score
+        > Input
+            > vLetter - The function takes an ASCII character as its input
+        > Function
+            > Use ord() to convert ASCII to value
+            > Return value
+        > UNIT TEST
+            > Input:  I
+            > Output: 40
+    > def write_out(vRead,vIndx,vFile)
+        > Description: Writes a FASTQ read to a specified file
+        > Input
+            > vRead - A piece of data containing the 4-line read data
+            > vIndx - The names of the two barcodes for the read
+            > vFile - The name of the target file to write into
+        > Function
+            > Append the barcodes (vIndx) to the end of the header line
+            > Open the output file (vFile)
+            > Write the read data to the output file.
+            > return
+        > UNIT TEST
+            > Input
+                > Read:
+                    > Header
+                    > Sequence
+                    > +
+                    > Quality Score
+                > Barcodes: ATGCATGC, ATGCATGC
+                > File: index_ATGCATGC.fq
+            > Output
+                > A read appended to the end of file "index_ATGCATGC.fq" with header "Header + ATGCATGC-ATGCATGC"
+
+> ALGORITHM
+    > Generate all index-hopping pairs
+        > Given our list of 24 indexes, come up with every combination
+        > (24 indexs) x (24 indexes) = (576) - (24 dual matched pairs) = 552 unique index-hopping pairs
+    > Compare Indexes for Each Read
+        > Open R1, R2, R3, R4 files in parallel
+        > Extract indexes from R2 and R3
+        > FILTER 1: Check if index is ambiguous
+            > True/False: Is 1+ "N" in either index?
+                > True: This read is ambiguous
+                    > Add the sequence of the index-pair to the header
+                    > Write the R1 read to the forward unknown-index/low-quality file (write_out)
+                    > Write the R4 read to the reverse unknown-index/low-quality file (write_out)
+                    > Move on to the next read
+                > False: This read is NOT ambiguous! Proceed to Filter 2
+        > FILTER 2: Check if index is low quality
+            > Given: A quality-score cutoff threshold
+            > Calculate index quality scores
+                > Extract quality score line from R2 & R3 files
+                > Convert ASCII quality score to Phred+33 (Function: convert_phred())
+            > True/False: Do either index contain nucleotides below the quality score threshold?
+                > True: This read is low-quality
+                    > Add the sequence of the index-pair to the header
+                    > Write the R1 read to the forward unknown-index/low-quality file (write_out)
+                    > Write the R4 read to the reverse unknown-index/low-quality file (write_out)
+                    > Move on to the next read
+                > False: This read is NOT low-quality! Proceed to Filter 3
+        > FILTER 3: Check for index-hopping
+            > True/False: Are the indexes different?
+                > True: Index hopping has occured
+                    > Add the sequence of the index-pair to the header
+                    > Write the R1 read to the forward index-hopping file (write_out)
+                    > Write the R4 read to the reverse index-hopping file (write_out)
+                    > Move on to the next read 
+                False: This read has dual-matched indexes!
+                    > Identify the dual-matched index
+                    > Add the sequence of the index-pair to the header
+                    > Write the R1 read to the index-specific forward dual-matched file (write_out)
+                    > Write the R4 read to the index-specific reverse dual-matched file (write_out)
+                    > Move on to the next read
+
+
+
+###Part 3: Code
+
+Directory
+    > cd /projects/bgmp/skoehler/bioinformatics/Bi622/demultiplexing/Part_3/
+
+Execution: Unit Test
+    > python demultiplex.py -qc 30 -R1 1R_test.fq.gz -R2 2R_test.fq.gz -R3 3R_test.fq.gz -R4 4R_test.fq.gz
+
+Program
+    > demultiplex.py
+
+Notes
+    > FILTER 1: Ambiguous reads
+        > This filter was chosen first because it is the least subjective filter.
+        > Regardless of quality or index hopping, ambiguous reads should always be removed
+
+    > FILTER 2: Low Quality Score
+        > Filtering for quality score logic is similair to the per-nucleotide approach used for filter 1
+        > Barcodes are analyzed on a per-nucleotide basis since a single bad nucleotide can lead to some serious uncertainty
+        > Given a high quality score cutoff of 30, some strange barcodes still appeared (no N, but not in barcode list either)
+            > These must just be artifacts. I am counting them with the Low Quality category since they are impossible.
+            > These could approximate how many similair barcodes appear "normal" aka a bad barcode that switched to something in the barcode list.
+            > These barcodes are labeled "unknown"
+
+    > FILTER 3: Index Hopping
+        > This filter should only been performed once the reads have been confirmed as high quality
+        
+Batch Script
+> /usr/bin/time -v sbatch batch_demultiplex.srun
+
+Submitted batch job 12665620 @ 9:20 AM
+        Command being timed: "sbatch batch_demultiplex.srun"
+        User time (seconds): 0.01
+        System time (seconds): 0.00
+        Percent of CPU this job got: 77%
+        Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.01
+        Average shared text size (kbytes): 0
+        Average unshared data size (kbytes): 0
+        Average stack size (kbytes): 0
+        Average total size (kbytes): 0
+        Maximum resident set size (kbytes): 2548
+        Average resident set size (kbytes): 0
+        Major (requiring I/O) page faults: 0
+        Minor (reclaiming a frame) page faults: 752
+        Voluntary context switches: 29
+        Involuntary context switches: 1
+        Swaps: 0
+        File system inputs: 0
+        File system outputs: 0
+        Socket messages sent: 0
+        Socket messages received: 0
+        Signals delivered: 0
+        Page size (bytes): 4096
+        Exit status: 0
+
+STDOUT
+	Quality Score Identified: 30
+	['?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+
+	Number of Reads Identified: 363246735
+
+	Input Files Identified:
+	- /projects/bgmp/shared/2017_sequencing/1294_S1_L008_R1_001.fastq.gz 
+	- /projects/bgmp/shared/2017_sequencing/1294_S1_L008_R2_001.fastq.gz 
+	- /projects/bgmp/shared/2017_sequencing/1294_S1_L008_R3_001.fastq.gz 
+	- /projects/bgmp/shared/2017_sequencing/1294_S1_L008_R4_001.fastq.gz
+
+	Output files generated (52)
+	1.0 % Complete
+	...
+	100.0 % Complete
+
+
+Output Read Information
+    total 184G
+    -rw-rw----+ 1 skoehler talapas 1.7G Aug  6 11:24 Index_Match_F_AACAGCGA.txt
+    -rw-rw----+ 1 skoehler talapas 1.6G Aug  6 11:24 Index_Match_F_ACGATCAG.txt
+    -rw-rw----+ 1 skoehler talapas 2.0G Aug  6 11:24 Index_Match_F_AGAGTCCA.txt
+    -rw-rw----+ 1 skoehler talapas 1.5G Aug  6 11:24 Index_Match_F_AGGATAGC.txt
+    -rw-rw----+ 1 skoehler talapas 1.8G Aug  6 11:24 Index_Match_F_ATCATGCG.txt
+    -rw-rw----+ 1 skoehler talapas 1.2G Aug  6 11:24 Index_Match_F_ATCGTGGT.txt
+    -rw-rw----+ 1 skoehler talapas 668M Aug  6 11:24 Index_Match_F_CACTTCAC.txt
+    -rw-rw----+ 1 skoehler talapas 1.1G Aug  6 11:24 Index_Match_F_CGATCGAT.txt
+    -rw-rw----+ 1 skoehler talapas 620M Aug  6 11:24 Index_Match_F_CGGTAATC.txt
+    -rw-rw----+ 1 skoehler talapas 3.3G Aug  6 11:24 Index_Match_F_CTAGCTCA.txt
+    -rw-rw----+ 1 skoehler talapas 6.3G Aug  6 11:24 Index_Match_F_CTCTGGAT.txt
+    -rw-rw----+ 1 skoehler talapas 1.2G Aug  6 11:24 Index_Match_F_GATCAAGG.txt
+    -rw-rw----+ 1 skoehler talapas 683M Aug  6 11:24 Index_Match_F_GATCTTGC.txt
+    -rw-rw----+ 1 skoehler talapas 1.1G Aug  6 11:24 Index_Match_F_GCTACTCT.txt
+    -rw-rw----+ 1 skoehler talapas 1.5G Aug  6 11:24 Index_Match_F_GTAGCGTA.txt
+    -rw-rw----+ 1 skoehler talapas 1.6G Aug  6 11:24 Index_Match_F_GTCCTAAG.txt
+    -rw-rw----+ 1 skoehler talapas  13G Aug  6 11:24 Index_Match_F_TACCGGAT.txt
+    -rw-rw----+ 1 skoehler talapas 1.9G Aug  6 11:24 Index_Match_F_TAGCCATG.txt
+    -rw-rw----+ 1 skoehler talapas 2.0G Aug  6 11:24 Index_Match_F_TATGGCAC.txt
+    -rw-rw----+ 1 skoehler talapas 685M Aug  6 11:24 Index_Match_F_TCGACAAG.txt
+    -rw-rw----+ 1 skoehler talapas 1.9G Aug  6 11:24 Index_Match_F_TCGAGAGT.txt
+    -rw-rw----+ 1 skoehler talapas 745M Aug  6 11:24 Index_Match_F_TCGGATTC.txt
+    -rw-rw----+ 1 skoehler talapas 7.7G Aug  6 11:24 Index_Match_F_TCTTCGAC.txt
+    -rw-rw----+ 1 skoehler talapas 2.9G Aug  6 11:24 Index_Match_F_TGTTCCGT.txt
+    -rw-rw----+ 1 skoehler talapas 1.7G Aug  6 11:24 Index_Match_R_AACAGCGA.txt
+    -rw-rw----+ 1 skoehler talapas 1.6G Aug  6 11:24 Index_Match_R_ACGATCAG.txt
+    -rw-rw----+ 1 skoehler talapas 2.0G Aug  6 11:24 Index_Match_R_AGAGTCCA.txt
+    -rw-rw----+ 1 skoehler talapas 1.5G Aug  6 11:24 Index_Match_R_AGGATAGC.txt
+    -rw-rw----+ 1 skoehler talapas 1.8G Aug  6 11:24 Index_Match_R_ATCATGCG.txt
+    -rw-rw----+ 1 skoehler talapas 1.2G Aug  6 11:24 Index_Match_R_ATCGTGGT.txt
+    -rw-rw----+ 1 skoehler talapas 668M Aug  6 11:24 Index_Match_R_CACTTCAC.txt
+    -rw-rw----+ 1 skoehler talapas 1.1G Aug  6 11:24 Index_Match_R_CGATCGAT.txt
+    -rw-rw----+ 1 skoehler talapas 620M Aug  6 11:24 Index_Match_R_CGGTAATC.txt
+    -rw-rw----+ 1 skoehler talapas 3.3G Aug  6 11:24 Index_Match_R_CTAGCTCA.txt
+    -rw-rw----+ 1 skoehler talapas 6.3G Aug  6 11:24 Index_Match_R_CTCTGGAT.txt
+    -rw-rw----+ 1 skoehler talapas 1.2G Aug  6 11:24 Index_Match_R_GATCAAGG.txt
+    -rw-rw----+ 1 skoehler talapas 683M Aug  6 11:24 Index_Match_R_GATCTTGC.txt
+    -rw-rw----+ 1 skoehler talapas 1.1G Aug  6 11:24 Index_Match_R_GCTACTCT.txt
+    -rw-rw----+ 1 skoehler talapas 1.5G Aug  6 11:24 Index_Match_R_GTAGCGTA.txt
+    -rw-rw----+ 1 skoehler talapas 1.6G Aug  6 11:24 Index_Match_R_GTCCTAAG.txt
+    -rw-rw----+ 1 skoehler talapas  13G Aug  6 11:24 Index_Match_R_TACCGGAT.txt
+    -rw-rw----+ 1 skoehler talapas 1.9G Aug  6 11:24 Index_Match_R_TAGCCATG.txt
+    -rw-rw----+ 1 skoehler talapas 2.0G Aug  6 11:24 Index_Match_R_TATGGCAC.txt
+    -rw-rw----+ 1 skoehler talapas 685M Aug  6 11:24 Index_Match_R_TCGACAAG.txt
+    -rw-rw----+ 1 skoehler talapas 1.9G Aug  6 11:24 Index_Match_R_TCGAGAGT.txt
+    -rw-rw----+ 1 skoehler talapas 745M Aug  6 11:24 Index_Match_R_TCGGATTC.txt
+    -rw-rw----+ 1 skoehler talapas 7.7G Aug  6 11:24 Index_Match_R_TCTTCGAC.txt
+    -rw-rw----+ 1 skoehler talapas 2.9G Aug  6 11:24 Index_Match_R_TGTTCCGT.txt
+    -rw-rw----+ 1 skoehler talapas  86M Aug  6 11:24 Index_Mixed_F.txt
+    -rw-rw----+ 1 skoehler talapas  86M Aug  6 11:24 Index_Mixed_R.txt
+    -rw-rw----+ 1 skoehler talapas  35G Aug  6 11:24 Low_Quality_F.txt
+    -rw-rw----+ 1 skoehler talapas  35G Aug  6 11:24 Low_Quality_R.txt
+    -rw-rw----+ 1 skoehler talapas  13K Aug  6 11:38 summary.txt
+
+SUMMARY
+    CATEGORY            OCCURENCES  %
+    Dual Matched	    226715602	62.41%
+    Low Quality 	    126813408	34.91%
+    Unknown Hopping     5181567	    01.43%
+    Ambiguous (N)	    4205183	    01.16%
+    Known Hopping	    330975	    00.091%
+    TOTAL               363246735
+
+Unit Tests
+    > Small: Ensure specific categories are working
+    > Large: Test results on a smaller scale than large file
+
